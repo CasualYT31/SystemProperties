@@ -61,7 +61,7 @@ namespace sys {
 		 * \brief  Retrieves the total available RAM.
 		 * \return The available RAM in MiB.
 		 */
-		std::uint64_t available();
+		std::string available();
 	}
 
 	/**
