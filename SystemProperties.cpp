@@ -120,7 +120,7 @@ std::string sys::mem::total() {
 		// skip first three lines
 		for (int x = 0; x < 3; x++) std::getline(ifs, ret);
 		// continue on and count up each memory stick's capacity to calculate the total
-		std::uint64_t count = 0.0;
+		std::uint64_t count = 0;
 		for (;;) {
 			ret = getcleanline(ifs);
 			if (ret == "") break;
@@ -129,7 +129,7 @@ std::string sys::mem::total() {
 		ifs.close();
 		remove(tempfile.c_str());
 		// convert bytes to gigabytes
-		cache = std::to_string((std::uint64_t((double)count / 1024 / 1024 / 1024)) + "GB";
+		cache = std::to_string(count / 1024 / 1024 / 1024) + "GB";
 	}
 	return cache;
 }

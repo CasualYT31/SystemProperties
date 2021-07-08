@@ -5,6 +5,3 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 add_library(SystemProperties STATIC SystemProperties.hpp SystemProperties.cpp)
 target_include_directories(SystemProperties PUBLIC ${CMAKE_CURRENT_LIST_DIR})
-
-install(TARGETS SystemProperties LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
-install(FILES SystemProperties.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
