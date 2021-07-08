@@ -129,7 +129,7 @@ std::string sys::mem::total() {
 		ifs.close();
 		remove(tempfile.c_str());
 		// convert bytes to gigabytes
-		cache = std::to_string(count / 1024 / 1024 / 1024) + "GB";
+		cache = std::to_string((std::uint64_t((double)count / 1024 / 1024 / 1024)) + "GB";
 	}
 	return cache;
 }
