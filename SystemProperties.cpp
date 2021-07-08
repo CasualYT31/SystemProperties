@@ -28,10 +28,48 @@ int main() {
 	std::cout << sys::cpu::model() << std::endl;
 	std::cout << sys::cpu::architecture() << std::endl;
 	std::cout << sys::cpu::model() << std::endl;
+	std::cout << sys::mem::available() << std::endl;
 	return 0;
 }
 
 #ifdef _WIN32
+
+/**
+ * \brief  Perform the PowerShell command.
+ * \param  className  The name of the class of device information to retrieve.
+ * \param  objectName The name of the piece of device information to retrieve.
+ * \return The name of the temporary file created to store the output of the
+ *         PowerShell command.
+ * \sa     get()
+ */
+std::string powershell(const std::string& className,
+	const std::string& objectName) {
+	std::string tempfile = className + objectName + ".temp";
+	std::string inp = "start /wait /b powershell.exe \"Get-CimInstance -ClassName "
+		+ className + " | Select-Object " + objectName + " > \"" + tempfile +
+		"\"\"";
+	system(inp.c_str());
+	return tempfile;
+}
+
+/**
+ * \brief   Reads a line from a temporary file and cleans it up.
+ * \details The string is trimmed on both ends, and all extra bytes are removed.
+ * \param   ifs The \c ifstream to read from.
+ */
+std::string getcleanline(std::ifstream& ifs) {
+	std::string ret;
+	std::getline(ifs, ret);
+	// https://stackoverflow.com/questions/216823/whats-the-best-way-to-trim-stdstring
+	// we also have to account for NULL characters:
+	// I tried getting wstrings to work but it just wasn't happening...
+	// I opted for simply removing the extra bytes (i.e. the NULLs)
+	// https://stackoverflow.com/questions/20326356/how-to-remove-all-the-occurrences-of-a-char-in-c-string
+	ret.erase(std::remove(ret.begin(), ret.end(), '\0'), ret.end());
+	ret.erase(0, ret.find_first_not_of(" \n\r\t"));
+	ret.erase(ret.find_last_not_of(" \n\r\t") + 1);
+	return ret;
+}
 
 /**
  * \brief   Helper function used throughout the Windows implementation.
@@ -41,24 +79,16 @@ int main() {
  * \param   className  The name of the class of device information to retrieve.
  * \param   objectName The name of the piece of device information to retrieve.
  * \return  Returns the output gleaned from executing the command.
+ * \sa      powershell()
  */
 std::string get(const std::string& className, const std::string& objectName) {
-	using namespace std::string_literals;
-	std::string tempfile = className + "." + objectName + ".temp";
-	std::string inp = "start /b powershell.exe \"Get-CimInstance -ClassName " +
-		className + " | Select-Object " + objectName + " > \"" + tempfile + "\"\"";
-	system(inp.c_str());
+	std::string tempfile = powershell(className, objectName);
 	std::ifstream ifs(tempfile);
 	std::string ret;
 	// get to line 4, extract line 4
-	for (int x = 0; x < 4; x++) std::getline(ifs, ret);
+	for (int x = 0; x < 4; x++) ret = getcleanline(ifs);
 	ifs.close();
-	std::remove(tempfile.c_str());
-	// https://stackoverflow.com/questions/216823/whats-the-best-way-to-trim-stdstring
-	// we also have to account for NULL characters that Powershell likes to insert
-	// into right-aligned fields...
-	ret.erase(0, ret.find_first_not_of(" \0\n\r\t"s));
-	ret.erase(ret.find_last_not_of(" \0\n\r\t"s) + 1);
+	remove(tempfile.c_str());
 	return ret;
 }
 
@@ -73,7 +103,7 @@ std::string get(const std::string& className, const std::string& objectName) {
  */
 #define FUNCTION(c, o) \
 	static std::string cache = ""; \
-	if (cache == "") cache = get(c, o); \
+	if (cache == "") { cache = get(c, o); } \
 	return cache;
 
 /////////
@@ -84,6 +114,30 @@ std::string get(const std::string& className, const std::string& objectName) {
 std::string sys::cpu::model() { FUNCTION("CIM_Processor", "name"); }
 
 std::string sys::cpu::architecture() { FUNCTION("CIM_Processor", "addresswidth"); }
+
+////////////
+// MEMORY //
+////////////
+// https://docs.microsoft.com/en-us/windows/win32/cimwin32prov/cim-physicalmemory
+
+std::string sys::mem::available() {
+	std::string tempfile = powershell("CIM_PhysicalMemory", "capacity");
+	std::ifstream ifs(tempfile);
+	std::string ret;
+	// skip first three lines
+	for (int x = 0; x < 3; x++) std::getline(ifs, ret);
+	// continue on and count up each memory stick's capacity to calculate the total
+	std::uint64_t count = 0.0;
+	for (;;) {
+		ret = getcleanline(ifs);
+		if (ret == "") break;
+		count += std::stoll(ret);
+	}
+	ifs.close();
+	remove(tempfile.c_str());
+	// convert bytes to gigabytes
+	return std::to_string(count / 1024 / 1024 / 1024) + "GB";
+}
 
 #elif __linux__
 
