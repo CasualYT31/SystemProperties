@@ -28,7 +28,12 @@ int main() {
 	std::cout << sys::cpu::model() << std::endl;
 	std::cout << sys::cpu::architecture() << std::endl;
 	std::cout << sys::cpu::model() << std::endl;
-	std::cout << sys::mem::available() << std::endl;
+	std::cout << sys::mem::total() << std::endl;
+	std::cout << sys::os::name() << std::endl;
+	std::cout << sys::os::version() << std::endl;
+	std::cout << sys::gpu::vendor() << std::endl;
+	std::cout << sys::gpu::name() << std::endl;
+	std::cout << sys::gpu::driver() << std::endl;
 	return 0;
 }
 
@@ -120,23 +125,51 @@ std::string sys::cpu::architecture() { FUNCTION("CIM_Processor", "addresswidth")
 ////////////
 // https://docs.microsoft.com/en-us/windows/win32/cimwin32prov/cim-physicalmemory
 
-std::string sys::mem::available() {
-	std::string tempfile = powershell("CIM_PhysicalMemory", "capacity");
-	std::ifstream ifs(tempfile);
-	std::string ret;
-	// skip first three lines
-	for (int x = 0; x < 3; x++) std::getline(ifs, ret);
-	// continue on and count up each memory stick's capacity to calculate the total
-	std::uint64_t count = 0.0;
-	for (;;) {
-		ret = getcleanline(ifs);
-		if (ret == "") break;
-		count += std::stoll(ret);
+std::string sys::mem::total() {
+	static std::string cache = "";
+	if (cache == "") {
+		std::string tempfile = powershell("CIM_PhysicalMemory", "capacity");
+		std::ifstream ifs(tempfile);
+		std::string ret;
+		// skip first three lines
+		for (int x = 0; x < 3; x++) std::getline(ifs, ret);
+		// continue on and count up each memory stick's capacity to calculate the total
+		std::uint64_t count = 0.0;
+		for (;;) {
+			ret = getcleanline(ifs);
+			if (ret == "") break;
+			count += std::stoll(ret);
+		}
+		ifs.close();
+		remove(tempfile.c_str());
+		// convert bytes to gigabytes
+		cache = std::to_string(count / 1024 / 1024 / 1024) + "GB";
 	}
-	ifs.close();
-	remove(tempfile.c_str());
-	// convert bytes to gigabytes
-	return std::to_string(count / 1024 / 1024 / 1024) + "GB";
+	return cache;
+}
+
+////////
+// OS //
+////////
+// https://docs.microsoft.com/en-us/windows/win32/cimwin32prov/win32-operatingsystem
+
+std::string sys::os::name() { FUNCTION("Win32_OperatingSystem", "caption"); }
+
+std::string sys::os::version() { FUNCTION("Win32_OperatingSystem", "version"); }
+
+/////////
+// GPU //
+/////////
+// https://docs.microsoft.com/en-us/windows/win32/cimwin32prov/win32-videocontroller
+
+std::string sys::gpu::vendor() {
+	FUNCTION("Win32_VideoController", "adaptercompatibility");
+}
+
+std::string sys::gpu::name() { FUNCTION("Win32_VideoController", "name"); }
+
+std::string sys::gpu::driver() {
+	FUNCTION("Win32_VideoController", "driverversion");
 }
 
 #elif __linux__

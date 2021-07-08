@@ -58,10 +58,10 @@ namespace sys {
 	 */
 	namespace mem {
 		/**
-		 * \brief  Retrieves the total available RAM.
-		 * \return The available RAM in MiB.
+		 * \brief  Retrieves the total RAM installed.
+		 * \return The installed RAM in GB.
 		 */
-		std::string available();
+		std::string total();
 	}
 
 	/**
