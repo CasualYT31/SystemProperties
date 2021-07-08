@@ -22,20 +22,6 @@ SOFTWARE.*/
 
 #include "SystemProperties.hpp"
 #include <fstream>
-#include <iostream>
-
-int main() {
-	std::cout << sys::cpu::model() << std::endl;
-	std::cout << sys::cpu::architecture() << std::endl;
-	std::cout << sys::cpu::model() << std::endl;
-	std::cout << sys::mem::total() << std::endl;
-	std::cout << sys::os::name() << std::endl;
-	std::cout << sys::os::version() << std::endl;
-	std::cout << sys::gpu::vendor() << std::endl;
-	std::cout << sys::gpu::name() << std::endl;
-	std::cout << sys::gpu::driver() << std::endl;
-	return 0;
-}
 
 #ifdef _WIN32
 
