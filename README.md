@@ -5,10 +5,26 @@ Cross-platform C++ library used to retrieve hardware and software information.
 The goal of this project is to program an interface via which a program may query the computer for various hardware and software details, such as CPU, memory, storage, GPU, etc. The library must be cross-platform and must be easily integratable into other projects via CMake.
 
 # How to Use
-If you are using CMake to build your project, you can include the following into your `CMakeLists.txt` file:
+If you are using CMake to build your project, you can include the following into your `CMakeLists.txt` file in order to add this library:
+```
+# minimum version required is 3.14 becuase of FetchContent_MakeAvailable
+cmake_minimum_required (VERSION 3.14)
+include (FetchContent)
+
+# etc.
+
+FetchContent_Declare(systemproperties
+	GIT_REPOSITORY https://github.com/CasualYT31/SystemProperties.git
+	GIT_TAG 0.1 # alternatively, you can use main to fetch the latest version (which may be unstable)
+)
+FetchContent_MakeAvailable(systemproperties)
+
+# etc.
+
+target_link_libraries(YourTargetNameHere SystemProperties)
 ```
 
-```
+Alternatively, you can simply download the code manually and add both `SystemProperties.hpp` and `SystemProperties.cpp` to your project directly as accompanying source files in case you don't wish to use CMake.
 
 # Note on Performance
 I intend to use command-line tools in order to carry out reliable queries. This may have an impact on the efficiency of the library, but it should make it robust and extensible. I have employed caching techniques in order to mitigate against the performance impact of relying on command-line utilities, however, if a faster way of performing the queries is identified in the future it will certainly be favoured.
