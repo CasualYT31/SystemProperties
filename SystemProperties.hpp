@@ -35,6 +35,31 @@ SOFTWARE.*/
  */
 namespace sys {
 	/**
+	 * Enumeration representing different units of memory/srorage capacity.
+	 */
+	enum class unit {
+		Bytes,
+		KB,
+		MB,
+		GB
+	};
+
+	/**
+	 * \brief  Function which converts bytes into a different unit.
+	 * \param  bytes The bytes value to convert.
+	 * \param  unit  The unit of capacity to convert to.
+	 * \return The converted number of bytes.
+	 */
+	std::uint64_t convert(const std::uint64_t bytes, const sys::unit unit);
+
+	/**
+	 * \brief  Finds out the notation of a given unit of storage capacity.
+	 * \param  unit The unit of storage capacity.
+	 * \return The label/notation given to the unit.
+	 */
+	std::string notation(const sys::unit unit);
+
+	/**
 	 * \brief Contains functions allowing the client to query the computer for CPU
 	 *        details.
 	 */
@@ -59,9 +84,11 @@ namespace sys {
 	namespace mem {
 		/**
 		 * \brief  Retrieves the total RAM installed.
-		 * \return The installed RAM in GB.
+		 * \param  The unit of memory capacity to convert the total RAM into. By
+		 *         default, it is GB.
+		 * \return The installed RAM.
 		 */
-		std::string total();
+		std::string total(const sys::unit unit = sys::unit::GB);
 	}
 
 	/**
@@ -104,5 +131,27 @@ namespace sys {
 		 * \return The version of the driver.
 		 */
 		std::string driver();
+	}
+
+	/**
+	 * \brief Contains functions allowing the client to query the computer for
+	 *        information on the primary drive.
+	 */
+	namespace storage {
+		/**
+		 * \brief  Retrieves the capacity of the primary drive.
+		 * \param  The unit of storage capacity to convert the bytes into. By
+		 *         default, it is GB.
+		 * \return Returns the capacity of the primary drive.
+		 */
+		std::string capacity(const sys::unit unit = sys::unit::GB);
+
+		/**
+		 * \brief  Retrieves the free space available in the primary drive.
+		 * \param  The unit of memory capacity to convert the total free space
+		 *         into. By default, it is GB.
+		 * \return Returns the free space available on the primary drive.
+		 */
+		std::string free(const sys::unit unit = sys::unit::GB);
 	}
 }

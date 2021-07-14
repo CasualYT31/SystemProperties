@@ -23,6 +23,32 @@ SOFTWARE.*/
 #include "SystemProperties.hpp"
 #include <fstream>
 
+std::uint64_t sys::convert(const std::uint64_t bytes, const sys::unit unit) {
+	switch (unit) {
+	case sys::unit::Bytes:
+		return bytes;
+	case sys::unit::KB:
+		return bytes / 1024;
+	case sys::unit::MB:
+		return bytes / 1024 / 1024;
+	case sys::unit::GB:
+		return bytes / 1024 / 1024 / 1024;
+	}
+}
+
+std::string sys::notation(const sys::unit unit) {
+	switch (unit) {
+	case sys::unit::Bytes:
+		return " bytes";
+	case sys::unit::KB:
+		return "KB";
+	case sys::unit::MB:
+		return "MB";
+	case sys::unit::GB:
+		return "GB";
+	}
+}
+
 #ifdef _WIN32
 
 /**
@@ -111,7 +137,7 @@ std::string sys::cpu::architecture() { FUNCTION("CIM_Processor", "addresswidth")
 ////////////
 // https://docs.microsoft.com/en-us/windows/win32/cimwin32prov/cim-physicalmemory
 
-std::string sys::mem::total() {
+std::string sys::mem::total(const sys::unit unit) {
 	static std::string cache = "";
 	if (cache == "") {
 		std::string tempfile = powershell("CIM_PhysicalMemory", "capacity");
@@ -119,7 +145,8 @@ std::string sys::mem::total() {
 		std::string ret;
 		// skip first three lines
 		for (int x = 0; x < 3; x++) std::getline(ifs, ret);
-		// continue on and count up each memory stick's capacity to calculate the total
+		// continue on and count up each memory stick's capacity to calculate the
+		// total
 		std::uint64_t count = 0;
 		for (;;) {
 			ret = getcleanline(ifs);
@@ -128,8 +155,7 @@ std::string sys::mem::total() {
 		}
 		ifs.close();
 		remove(tempfile.c_str());
-		// convert bytes to gigabytes
-		cache = std::to_string(count / 1024 / 1024 / 1024) + "GB";
+		cache = std::to_string(sys::convert(count, unit)) + sys::notation(unit);
 	}
 	return cache;
 }
@@ -156,6 +182,43 @@ std::string sys::gpu::name() { FUNCTION("Win32_VideoController", "name"); }
 
 std::string sys::gpu::driver() {
 	FUNCTION("Win32_VideoController", "driverversion");
+}
+
+/////////////
+// STORAGE //
+/////////////
+// https://docs.microsoft.com/en-us/windows/win32/cimwin32prov/win32-logicaldisk
+
+std::string sys::storage::capacity(const sys::unit unit) {
+	static std::string cache = "";
+	if (cache == "") {
+		std::string tempfile = powershell("Win32_LogicalDisk", "size");
+		std::ifstream ifs(tempfile);
+		std::string ret;
+		// skip first three lines, read fourth line
+		for (int x = 0; x < 4; x++) std::getline(ifs, ret);
+		std::uint64_t count = std::stoll(ret);
+		ifs.close();
+		remove(tempfile.c_str());
+		cache = std::to_string(sys::convert(count, unit)) + sys::notation(unit);
+	}
+	return cache;
+}
+
+std::string sys::storage::free(const sys::unit unit) {
+	static std::string cache = "";
+	if (cache == "") {
+		std::string tempfile = powershell("Win32_LogicalDisk", "freespace");
+		std::ifstream ifs(tempfile);
+		std::string ret;
+		// skip first three lines, read fourth line
+		for (int x = 0; x < 4; x++) std::getline(ifs, ret);
+		std::uint64_t count = std::stoll(ret);
+		ifs.close();
+		remove(tempfile.c_str());
+		cache = std::to_string(sys::convert(count, unit)) + sys::notation(unit);
+	}
+	return cache;
 }
 
 #elif __linux__
