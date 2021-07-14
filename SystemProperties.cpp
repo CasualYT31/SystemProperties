@@ -22,6 +22,7 @@ SOFTWARE.*/
 
 #include "SystemProperties.hpp"
 #include <fstream>
+#include <iostream>
 
 std::uint64_t sys::convert(const std::uint64_t bytes, const sys::unit unit) {
 	switch (unit) {
@@ -33,6 +34,8 @@ std::uint64_t sys::convert(const std::uint64_t bytes, const sys::unit unit) {
 		return bytes / 1024 / 1024;
 	case sys::unit::GB:
 		return bytes / 1024 / 1024 / 1024;
+	default:
+		return bytes;
 	}
 }
 
@@ -46,6 +49,8 @@ std::string sys::notation(const sys::unit unit) {
 		return "MB";
 	case sys::unit::GB:
 		return "GB";
+	default:
+		return "";
 	}
 }
 
@@ -197,6 +202,7 @@ std::string sys::storage::capacity(const sys::unit unit) {
 		std::string ret;
 		// skip first three lines, read fourth line
 		for (int x = 0; x < 4; x++) std::getline(ifs, ret);
+		std::cout << ret << std::endl;
 		std::uint64_t count = std::stoll(ret);
 		ifs.close();
 		remove(tempfile.c_str());
