@@ -22,7 +22,6 @@ SOFTWARE.*/
 
 #include "SystemProperties.hpp"
 #include <fstream>
-#include <iostream>
 
 std::uint64_t sys::convert(const std::uint64_t bytes, const sys::unit unit) {
 	switch (unit) {
@@ -201,9 +200,8 @@ std::string sys::storage::capacity(const sys::unit unit) {
 		std::ifstream ifs(tempfile);
 		std::string ret;
 		// skip first three lines, read fourth line
-		for (int x = 0; x < 4; x++) std::getline(ifs, ret);
-		std::cout << ret << std::endl;
-		std::uint64_t count = std::stoll(ret);
+		for (int x = 0; x < 3; x++) std::getline(ifs, ret);
+		std::uint64_t count = std::stoll(getcleanline(ifs));
 		ifs.close();
 		remove(tempfile.c_str());
 		cache = std::to_string(sys::convert(count, unit)) + sys::notation(unit);
@@ -218,8 +216,8 @@ std::string sys::storage::free(const sys::unit unit) {
 		std::ifstream ifs(tempfile);
 		std::string ret;
 		// skip first three lines, read fourth line
-		for (int x = 0; x < 4; x++) std::getline(ifs, ret);
-		std::uint64_t count = std::stoll(ret);
+		for (int x = 0; x < 3; x++) std::getline(ifs, ret);
+		std::uint64_t count = std::stoll(getcleanline(ifs));
 		ifs.close();
 		remove(tempfile.c_str());
 		cache = std::to_string(sys::convert(count, unit)) + sys::notation(unit);
