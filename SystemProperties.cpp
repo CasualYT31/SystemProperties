@@ -21,216 +21,274 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.*/
 
 #include "SystemProperties.hpp"
-#include <fstream>
+#include <system_error>
 
-std::uint64_t sys::convert(const std::uint64_t bytes, const sys::unit unit) {
+std::uint64_t System::convert(const std::uint64_t bytes, const System::Unit unit)
+	noexcept {
 	switch (unit) {
-	case sys::unit::Bytes:
+	case System::Unit::Bytes:
 		return bytes;
-	case sys::unit::KB:
+	case System::Unit::KB:
 		return bytes / 1024;
-	case sys::unit::MB:
+	case System::Unit::MB:
 		return bytes / 1024 / 1024;
-	case sys::unit::GB:
+	case System::Unit::GB:
 		return bytes / 1024 / 1024 / 1024;
 	default:
 		return bytes;
 	}
 }
 
-std::string sys::notation(const sys::unit unit) {
+std::string System::notation(const System::Unit unit) noexcept {
 	switch (unit) {
-	case sys::unit::Bytes:
+	case System::Unit::Bytes:
 		return " bytes";
-	case sys::unit::KB:
+	case System::Unit::KB:
 		return "KB";
-	case sys::unit::MB:
+	case System::Unit::MB:
 		return "MB";
-	case sys::unit::GB:
+	case System::Unit::GB:
 		return "GB";
 	default:
 		return "";
 	}
 }
 
+////////////////////////////
+// WINDOWS IMPLEMENTATION //
+////////////////////////////
 #ifdef _WIN32
+// https://docs.microsoft.com/en-us/windows/win32/wmisdk/example--getting-wmi-data-from-the-local-computer
+// this web page was invaluable
 
-/**
- * \brief  Perform the PowerShell command.
- * \param  className  The name of the class of device information to retrieve.
- * \param  objectName The name of the piece of device information to retrieve.
- * \return The name of the temporary file created to store the output of the
- *         PowerShell command.
- * \sa     get()
- */
-std::string powershell(const std::string& className,
-	const std::string& objectName) {
-	std::string tempfile = className + objectName + ".temp";
-	std::string inp = "start /wait /b powershell.exe \"Get-CimInstance -ClassName "
-		+ className + " | Select-Object " + objectName + " > \"" + tempfile +
-		"\"\"";
-	system(inp.c_str());
-	return tempfile;
+System::Properties::Properties() {
+	HRESULT res;
+	
+	// step 1: initialise COM
+	res = CoInitializeEx(NULL, COINIT_MULTITHREADED);
+	if (FAILED(res)) {
+		throw std::system_error(std::error_code(res, std::system_category()),
+			"Failed to initialise COM");
+	}
+
+	// step 2: set general COM security levels
+	res = CoInitializeSecurity(
+		NULL,
+		-1,                          // COM authentication
+		NULL,                        // Authentication services
+		NULL,                        // Reserved
+		RPC_C_AUTHN_LEVEL_DEFAULT,   // Default authentication 
+		RPC_C_IMP_LEVEL_IMPERSONATE, // Default Impersonation  
+		NULL,                        // Authentication info
+		EOAC_NONE,                   // Additional capabilities 
+		NULL                         // Reserved
+	);
+	if (FAILED(res)) {
+		CoUninitialize();
+		throw std::system_error(std::error_code(res, std::system_category()),
+			"Failed to initialise COM security");
+	}
+
+	// step 3: obtain the initial locator to WMI
+	res = CoCreateInstance(CLSID_WbemLocator, NULL, CLSCTX_INPROC_SERVER,
+		IID_IWbemLocator, (LPVOID*)&_pLoc);
+	if (FAILED(res)) {
+		CoUninitialize();
+		throw std::system_error(std::error_code(res, std::system_category()),
+			"Failed to create IWbemLocator object");
+	}
+
+	// step 4: connect to WMI
+	res = _pLoc->ConnectServer(
+		_bstr_t(L"ROOT\\CIMV2"), // Object path of WMI namespace
+		NULL,                    // User name. NULL = current user
+		NULL,                    // User password. NULL = current
+		0,                       // Locale. NULL indicates current
+		NULL,                    // Security flags.
+		0,                       // Authority (for example, Kerberos)
+		0,                       // Context object
+		&_pSvc                   // pointer to IWbemServices proxy
+	);
+	if (FAILED(res)) {
+		_pLoc->Release();
+		CoUninitialize();
+		throw std::system_error(std::error_code(res, std::system_category()),
+			"Failed to create IWbemServices proxy");
+	}
+
+	// step 5: set security levels on the proxy
+	res = CoSetProxyBlanket(
+		_pSvc,                       // Indicates the proxy to set
+		RPC_C_AUTHN_WINNT,           // RPC_C_AUTHN_xxx
+		RPC_C_AUTHZ_NONE,            // RPC_C_AUTHZ_xxx
+		NULL,                        // Server principal name 
+		RPC_C_AUTHN_LEVEL_CALL,      // RPC_C_AUTHN_LEVEL_xxx 
+		RPC_C_IMP_LEVEL_IMPERSONATE, // RPC_C_IMP_LEVEL_xxx
+		NULL,                        // client identity
+		EOAC_NONE                    // proxy capabilities 
+	);
+	if (FAILED(res)) {
+		_pSvc->Release();
+		_pLoc->Release();
+		CoUninitialize();
+		throw std::system_error(std::error_code(res, std::system_category()),
+			"Failed to initialise IWbemServices proxy security");
+	}
 }
 
-/**
- * \brief   Reads a line from a temporary file and cleans it up.
- * \details The string is trimmed on both ends, and all extra bytes are removed.
- * \param   ifs The \c ifstream to read from.
- */
-std::string getcleanline(std::ifstream& ifs) {
-	std::string ret;
-	std::getline(ifs, ret);
-	// https://stackoverflow.com/questions/216823/whats-the-best-way-to-trim-stdstring
-	// we also have to account for NULL characters:
-	// I tried getting wstrings to work but it just wasn't happening...
-	// I opted for simply removing the extra bytes (i.e. the NULLs)
-	// https://stackoverflow.com/questions/20326356/how-to-remove-all-the-occurrences-of-a-char-in-c-string
-	ret.erase(std::remove(ret.begin(), ret.end(), '\0'), ret.end());
-	ret.erase(0, ret.find_first_not_of(" \n\r\t"));
-	ret.erase(ret.find_last_not_of(" \n\r\t") + 1);
-	return ret;
+System::Properties::~Properties() noexcept {
+	if (_pSvc) _pSvc->Release();
+	if (_pLoc) _pLoc->Release();
+	CoUninitialize();
 }
 
-/**
- * \brief   Helper function used throughout the Windows implementation.
- * \details This function executes a command on the shell and retrieves the output
- *          from it. A temporary file is created in the process, meaning that this
- *          function is comparatively slow...
- * \param   className  The name of the class of device information to retrieve.
- * \param   objectName The name of the piece of device information to retrieve.
- * \return  Returns the output gleaned from executing the command.
- * \sa      powershell()
- */
-std::string get(const std::string& className, const std::string& objectName) {
-	std::string tempfile = powershell(className, objectName);
-	std::ifstream ifs(tempfile);
-	std::string ret;
-	// get to line 4, extract line 4
-	for (int x = 0; x < 4; x++) ret = getcleanline(ifs);
-	ifs.close();
-	remove(tempfile.c_str());
-	return ret;
-}
+std::variant<std::vector<std::int64_t>, std::vector<std::uint64_t>,
+	std::vector<std::string>> System::Properties::_wmiRequest(
+	const char* className, const char* objectName, const CIMTYPE datatype) {
+	HRESULT res;
 
-/**
- * \brief   Macro used to ensure functions comply with a standard structure.
- * \details I've used static variables throughout the function code to reduce the
- *          impact of the slow \c get() function. Once a piece of information has
- *          been retrieved, it will likely not change again during execution, so
- *          cache it and return it when required.
- * \param   c The class name of the device information to retrieve.
- * \param   o The name of the specific piece of device information to retrieve.
- */
-#define FUNCTION(c, o) \
-	static std::string cache = ""; \
-	if (cache == "") { cache = get(c, o); } \
-	return cache;
+	// step 1: construct WMI query string
+	// format: SELECT x FROM y\0
+	std::size_t qryBuffSize = 14 + strlen(className) + strlen(objectName);
+	char* qry = (char*)calloc(qryBuffSize, sizeof(char));
+	strncpy_s(qry, qryBuffSize, "SELECT ", strlen("SELECT "));
+	strncat_s(qry, qryBuffSize, objectName, strlen(objectName));
+	strncat_s(qry, qryBuffSize, " FROM ", strlen(" FROM "));
+	strncat_s(qry, qryBuffSize, className, strlen(className));
 
-/////////
-// CPU //
-/////////
-// https://docs.microsoft.com/en-us/windows/win32/cimwin32prov/cim-processor
+	// step 2: use the IWbemServices proxy to make the request to the WMI
+	IEnumWbemClassObject* pEnumerator = NULL;
+	res = _pSvc->ExecQuery(bstr_t("WQL"), bstr_t(qry),
+		WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY, NULL, &pEnumerator);
+	free(qry);
+	if (FAILED(res)) {
+		std::string e = "Failed to perform query for WMI object ";
+		e.append(className);
+		e.append(".");
+		e.append(objectName);
+		throw std::system_error(std::error_code(res, std::system_category()), e);
+	}
 
-std::string sys::cpu::model() { FUNCTION("CIM_Processor", "name"); }
+	// step 3: get the data from the query's result
+	std::variant<std::vector<std::int64_t>, std::vector<std::uint64_t>,
+		std::vector<std::string>> ret;
+	std::size_t numberOfValues = 0;
+	IWbemClassObject* pclsObj = NULL;
+	ULONG uReturn = 0;
+	while (pEnumerator) {
+		res = pEnumerator->Next(WBEM_INFINITE, 1, &pclsObj, &uReturn);
+		if (!uReturn) break;
+		VARIANT vtProp = VARIANT();
+		wchar_t wtext[500]; // no object name is going to be this long... right?
+		std::size_t unused = 0;
+		mbstowcs_s(&unused, wtext, 500, objectName, strlen(objectName)+1);
+		// unfortunately, retrieving the CIM data type here is not reliable
+		// for example, CIM_Processor.AddressWidth is stored as a number, as this
+		// function says it should be,
+		// but CIM_PhysicalMemory.Capacity is stored as a series of strings, even
+		// though this function says it should be numeric??? this happens with
+		// Win32_LogicalDisk, too. idk man...
+		res = pclsObj->Get(wtext, 0, &vtProp, NULL, 0);
 
-std::string sys::cpu::architecture() { FUNCTION("CIM_Processor", "addresswidth"); }
+		switch (datatype) {
+		case CIM_STRING:
+			// setup vector
+			if (numberOfValues == 0) ret = std::vector<std::string>();
 
-////////////
-// MEMORY //
-////////////
-// https://docs.microsoft.com/en-us/windows/win32/cimwin32prov/cim-physicalmemory
-
-std::string sys::mem::total(const sys::unit unit) {
-	static std::string cache = "";
-	if (cache == "") {
-		std::string tempfile = powershell("CIM_PhysicalMemory", "capacity");
-		std::ifstream ifs(tempfile);
-		std::string ret;
-		// skip first three lines
-		for (int x = 0; x < 3; x++) std::getline(ifs, ret);
-		// continue on and count up each memory stick's capacity to calculate the
-		// total
-		std::uint64_t count = 0;
-		for (;;) {
-			ret = getcleanline(ifs);
-			if (ret == "") break;
-			count += std::stoll(ret);
+			{ std::wstring ws(vtProp.bstrVal, SysStringLen(vtProp.bstrVal));
+			int sizeNeeded = WideCharToMultiByte(CP_UTF8, 0, &ws[0],
+				(int)ws.size(), NULL, 0, NULL, NULL);
+			std::get<std::vector<std::string>>(ret).push_back(
+				std::string(sizeNeeded, 0));
+			WideCharToMultiByte(CP_UTF8, 0, &ws[0], (int)ws.size(),
+				&(std::get<std::vector<std::string>>(ret)[numberOfValues])[0],
+				sizeNeeded, NULL, NULL); }
+			break;
+		case CIM_SINT8:
+		case CIM_SINT16:
+		case CIM_SINT32:
+		case CIM_SINT64:
+			// setup vector
+			if (numberOfValues == 0) ret = std::vector<std::int64_t>();
+			std::get<std::vector<std::int64_t>>(ret).push_back(
+				(std::int64_t)vtProp.llVal);
+			break;
+		case CIM_UINT8:
+		case CIM_UINT16:
+		case CIM_UINT32:
+		case CIM_UINT64:
+			// setup vector
+			if (numberOfValues == 0) ret = std::vector<std::uint64_t>();
+			std::get<std::vector<std::uint64_t>>(ret).push_back(
+				(std::uint64_t)vtProp.ullVal);
+			break;
 		}
-		ifs.close();
-		remove(tempfile.c_str());
-		cache = std::to_string(sys::convert(count, unit)) + sys::notation(unit);
+
+		VariantClear(&vtProp);
+		pclsObj->Release();
+		numberOfValues++;
 	}
-	return cache;
+
+	pEnumerator->Release();
+	return ret;
 }
 
-////////
-// OS //
-////////
-// https://docs.microsoft.com/en-us/windows/win32/cimwin32prov/win32-operatingsystem
-
-std::string sys::os::name() { FUNCTION("Win32_OperatingSystem", "caption"); }
-
-std::string sys::os::version() { FUNCTION("Win32_OperatingSystem", "version"); }
-
-/////////
-// GPU //
-/////////
-// https://docs.microsoft.com/en-us/windows/win32/cimwin32prov/win32-videocontroller
-
-std::string sys::gpu::vendor() {
-	FUNCTION("Win32_VideoController", "adaptercompatibility");
+std::string System::Properties::CPUModel() {
+	return std::get<std::vector<std::string>>(
+		_wmiRequest("CIM_Processor", "name", CIM_STRING))[0];
 }
 
-std::string sys::gpu::name() { FUNCTION("Win32_VideoController", "name"); }
-
-std::string sys::gpu::driver() {
-	FUNCTION("Win32_VideoController", "driverversion");
+std::string System::Properties::CPUArchitecture() {
+	return std::to_string(std::get<std::vector<std::uint64_t>>(
+		_wmiRequest("CIM_Processor", "addresswidth", CIM_UINT64))[0]);
 }
 
-/////////////
-// STORAGE //
-/////////////
-// https://docs.microsoft.com/en-us/windows/win32/cimwin32prov/win32-logicaldisk
-
-std::string sys::storage::capacity(const sys::unit unit) {
-	static std::string cache = "";
-	if (cache == "") {
-		std::string tempfile = powershell("Win32_LogicalDisk", "size");
-		std::ifstream ifs(tempfile);
-		std::string ret;
-		// skip first three lines, read fourth line
-		for (int x = 0; x < 3; x++) std::getline(ifs, ret);
-		std::uint64_t count = std::stoll(getcleanline(ifs));
-		ifs.close();
-		remove(tempfile.c_str());
-		cache = std::to_string(sys::convert(count, unit)) + sys::notation(unit);
-	}
-	return cache;
+std::string System::Properties::RAMTotal(const System::Unit unit) {
+	std::uint64_t total = 0;
+	std::vector<std::string> bars = std::get<std::vector<std::string>>(
+		_wmiRequest("CIM_PhysicalMemory", "capacity", CIM_STRING));
+	for (auto& i : bars) total += std::stoull(i);
+	return std::to_string(System::convert(total, unit)) + System::notation(unit);
 }
 
-std::string sys::storage::free(const sys::unit unit) {
-	static std::string cache = "";
-	if (cache == "") {
-		std::string tempfile = powershell("Win32_LogicalDisk", "freespace");
-		std::ifstream ifs(tempfile);
-		std::string ret;
-		// skip first three lines, read fourth line
-		for (int x = 0; x < 3; x++) std::getline(ifs, ret);
-		std::uint64_t count = std::stoll(getcleanline(ifs));
-		ifs.close();
-		remove(tempfile.c_str());
-		cache = std::to_string(sys::convert(count, unit)) + sys::notation(unit);
-	}
-	return cache;
+std::string System::Properties::OSName() {
+	return std::get<std::vector<std::string>>(
+		_wmiRequest("Win32_OperatingSystem", "caption", CIM_STRING))[0];
 }
 
-#elif __linux__
+std::string System::Properties::OSVersion() {
+	return std::get<std::vector<std::string>>(
+		_wmiRequest("Win32_OperatingSystem", "version", CIM_STRING))[0];
+}
 
+std::string System::Properties::GPUVendor() {
+	return std::get<std::vector<std::string>>(
+		_wmiRequest("Win32_VideoController", "adaptercompatibility",
+			CIM_STRING))[0];
+}
 
+std::string System::Properties::GPUName() {
+	return std::get<std::vector<std::string>>(
+		_wmiRequest("Win32_VideoController", "name", CIM_STRING))[0];
+}
 
-#elif _OSX
+std::string System::Properties::GPUDriver() {
+	return std::get<std::vector<std::string>>(
+		_wmiRequest("Win32_VideoController", "driverversion", CIM_STRING))[0];
+}
 
+std::string System::Properties::StorageTotal(const System::Unit unit) {
+	std::string total = std::get<std::vector<std::string>>(
+		_wmiRequest("Win32_LogicalDisk", "size", CIM_STRING))[0];
+	return std::to_string(System::convert(std::stoull(total), unit)) +
+		System::notation(unit);
+}
 
+std::string System::Properties::StorageFree(const System::Unit unit) {
+	std::string total = std::get<std::vector<std::string>>(
+		_wmiRequest("Win32_LogicalDisk", "freespace", CIM_STRING))[0];
+	return std::to_string(System::convert(std::stoull(total), unit)) +
+		System::notation(unit);
+}
 
 #endif

@@ -24,20 +24,30 @@ SOFTWARE.*/
 
 #include <string>
 
-/**\file SystemProperties.hpp
- * \brief This file declares functions allowing the client to query the computer
- *        for hardware and software details.
+#ifdef _WIN32
+	#include <variant>
+	#include <vector>
+	#define _WIN32_DCOM
+	#include <comdef.h>
+	#include <WbemIdl.h>
+	#pragma comment(lib, "wbemuuid.lib")
+#endif
+
+/**\file  SystemProperties.hpp
+ * \brief This file declares the class which allows the client to query the
+ *        computer for hardware and software information.
  */
 
 /**
- * \brief Contains functions allowing the client to query the computer for hardware
- *        and software details.
+ * \brief The \c System namespace contains the \c Properties class.
  */
-namespace sys {
+namespace System {
 	/**
-	 * Enumeration representing different units of memory/srorage capacity.
+	 * \brief   The units of memory available for the client to use.
+	 * \remarks If more units are added, do not forget to update
+	 *          \c System::convert() and \c System::notation() accordingly.
 	 */
-	enum class unit {
+	enum class Unit {
 		Bytes,
 		KB,
 		MB,
@@ -45,113 +55,174 @@ namespace sys {
 	};
 
 	/**
-	 * \brief  Function which converts bytes into a different unit.
-	 * \param  bytes The bytes value to convert.
-	 * \param  unit  The unit of capacity to convert to.
-	 * \return The converted number of bytes.
+	 * \brief  This function converts a given number of bytes into a given unit of
+	 *         memory.
+	 * \param  bytes The bytes to convert, in \c System::Unit::Bytes.
+	 * \param  unit  The unit of memory to convert the given number of bytes to.
+	 * \return The number of bytes, converted.
 	 */
-	std::uint64_t convert(const std::uint64_t bytes, const sys::unit unit);
+	std::uint64_t convert(const std::uint64_t bytes, const System::Unit unit)
+		noexcept;
 
 	/**
-	 * \brief  Finds out the notation of a given unit of storage capacity.
-	 * \param  unit The unit of storage capacity.
-	 * \return The label/notation given to the unit.
+	 * \brief  This function retrieves the notation for the given unit of memory.
+	 * \param  unit The unit of memory to retrieve the notation of.
+	 * \return The notation of the given memory unit.
 	 */
-	std::string notation(const sys::unit unit);
+	std::string notation(const System::Unit unit) noexcept;
 
 	/**
-	 * \brief Contains functions allowing the client to query the computer for CPU
-	 *        details.
+	 * \brief   This class lets the client query the computer for hardware and
+	 *          software information.
+	 * \warning Due to limitations within the Windows implementation, this class
+	 *          should only be instantiated \b once, and kept alive for as long as
+	 *          necessary, before it is disposed of. It should \b not be
+	 *          instantiated more than once in a program, regardless of platform!
+	 * \warning In addition, within the Windows implementation, this library makes
+	 *          use of the COM library. Within the constructor, the following
+	 *          functions are called: \c CoInitializeEx(),
+	 *          \c CoInitializeSecurity(), \c CoCreateInstance(),
+	 *          \c IWbemLocator::ConnectServer(), and \c CoSetProxyBlanket().
+	 *          Microsoft in their Windows API documentation instructs the
+	 *          programmer to avoid calling most of these functions more than once
+	 *          in a program, so if you call these functions at all within your own
+	 *          code, you will likely not be able to use this library verbatim. You
+	 *          can extract the relevant code for yourself, or you may amend the
+	 *          constructor to fit around your application, if this is the case.
 	 */
-	namespace cpu {
+	class Properties {
+	public:
 		/**
-		 * \brief  Retrieves the name of the CPU model.
-		 * \return The user-friendly name of the CPU.
+		 * \brief   Initialises the connection between the program and the
+		 *          computer.
+		 * \warning If this constructor throws, \b do \b not use the resulting
+		 *          object, as it will be unsafe to do so (accessing NULL pointers
+		 *          internally, etc.).
+		 * \throws  \c std::system_error if initialisation failed. An OS-specific
+		 *          code and error string will be generated.
 		 */
-		std::string model();
+		Properties();
 
 		/**
-		 * \brief  Retrieves the architecture of the CPU.
-		 * \return The architecture of the CPU.
+		 * \brief Safely destroys the connection between the program and the
+		 *        computer.
 		 */
-		std::string architecture();
-	}
-
-	/**
-	 * \brief Contains functions allowing the client to query the computer for
-	 *        memory details.
-	 */
-	namespace mem {
-		/**
-		 * \brief  Retrieves the total RAM installed.
-		 * \param  The unit of memory capacity to convert the total RAM into. By
-		 *         default, it is GB.
-		 * \return The installed RAM.
-		 */
-		std::string total(const sys::unit unit = sys::unit::GB);
-	}
-
-	/**
-	 * \brief Contains functions allowing the client to query the computer for
-	 *        Operating System (software) details.
-	 */
-	namespace os {
-		/**
-		 * \brief  Retrieves the name of the running Operating System.
-		 * \return The user-friendly name of the Operating System of the computer.
-		 */
-		std::string name();
+		~Properties() noexcept;
 
 		/**
-		 * \brief  Retrieves the version of the running Operating System.
-		 * \return The version of the Operating System currently running.
+		 * \brief  Retrieves the CPU model name.
+		 * \return User-friendly name of the CPU.
+		 * \throws \c std::system_error if the the request failed. An OS-specific
+		 *         code and error string will be generated.
 		 */
-		std::string version();
-	}
-
-	/**
-	 * \brief Contains functions allowing the client to query the computer for GPU
-	 *        details.
-	 */
-	namespace gpu {
-		/**
-		 * \brief  Retrieves the vendor of the installed GPU.
-		 * \return The name of the GPU's vendor.
-		 */
-		std::string vendor();
+		std::string CPUModel();
 
 		/**
-		 * \brief  Retrieves the name of the installed GPU.
-		 * \return The user-friendly name of the GPU.
+		 * \brief  Retrieves the CPU architecture.
+		 * \return Architecture of the CPU.
+		 * \throws \c std::system_error if the the request failed. An OS-specific
+		 *         code and error string will be generated.
 		 */
-		std::string name();
+		std::string CPUArchitecture();
 
 		/**
-		 * \brief  Retrieves the version of the graphics driver in use.
-		 * \return The version of the driver.
+		 * \brief  Retrieves the total installed RAM available.
+		 * \param  unit The unit of memory to return the total RAM in. By default,
+		 *              it is \c System::Unit::GB.
+		 * \return The total RAM installed.
+		 * \throws \c std::system_error if the the request failed. An OS-specific
+		 *         code and error string will be generated.
 		 */
-		std::string driver();
-	}
+		std::string RAMTotal(const System::Unit unit = System::Unit::GB);
 
-	/**
-	 * \brief Contains functions allowing the client to query the computer for
-	 *        information on the primary drive.
-	 */
-	namespace storage {
+		/**
+		 * \brief  Retrieves the name of the OS the machine is running.
+		 * \return User-friendly OS name.
+		 * \throws \c std::system_error if the the request failed. An OS-specific
+		 *         code and error string will be generated.
+		 */
+		std::string OSName();
+
+		/**
+		 * \brief  Retrieves the version of the OS the machine is running.
+		 * \return Version string.
+		 * \throws \c std::system_error if the the request failed. An OS-specific
+		 *         code and error string will be generated.
+		 */
+		std::string OSVersion();
+
+		/**
+		 * \brief  Retrieves the vendor of the currently installed GPU.
+		 * \return The name of the vendor of the installed GPU.
+		 * \throws \c std::system_error if the the request failed. An OS-specific
+		 *         code and error string will be generated.
+		 */
+		std::string GPUVendor();
+
+		/**
+		 * \brief  Retrieves the name of the currently installed GPU.
+		 * \return User-friendly name of the installed GPU.
+		 * \throws \c std::system_error if the the request failed. An OS-specific
+		 *         code and error string will be generated.
+		 */
+		std::string GPUName();
+
+		/**
+		 * \brief  Retrieves the version of the driver the installed GPU is using.
+		 * \return Version string.
+		 * \throws \c std::system_error if the the request failed. An OS-specific
+		 *         code and error string will be generated.
+		 */
+		std::string GPUDriver();
+
 		/**
 		 * \brief  Retrieves the capacity of the primary drive.
-		 * \param  The unit of storage capacity to convert the bytes into. By
-		 *         default, it is GB.
-		 * \return Returns the capacity of the primary drive.
+		 * \param  unit The unit of memory to return the capacity in. By default,
+		 *              it is \c System::Unit::GB.
+		 * \return The capacity of the primary drive.
+		 * \throws \c std::system_error if the the request failed. An OS-specific
+		 *         code and error string will be generated.
 		 */
-		std::string capacity(const sys::unit unit = sys::unit::GB);
+		std::string StorageTotal(const System::Unit unit = System::Unit::GB);
 
 		/**
-		 * \brief  Retrieves the free space available in the primary drive.
-		 * \param  The unit of memory capacity to convert the total free space
-		 *         into. By default, it is GB.
-		 * \return Returns the free space available on the primary drive.
+		 * \brief  Retrieves the amount of free space on the primary drive.
+		 * \param  unit The unit of memory to return the free space in. By default,
+		 *              it is \c System::Unit::GB.
+		 * \return The free space of the primary drive.
+		 * \throws \c std::system_error if the the request failed. An OS-specific
+		 *         code and error string will be generated.
 		 */
-		std::string free(const sys::unit unit = sys::unit::GB);
-	}
+		std::string StorageFree(const System::Unit unit = System::Unit::GB);
+	private:
+#ifdef _WIN32
+		/**
+		 * \brief  Make a request to the WMI and retrieve the output.
+		 * \param  className  Name of the WMI class containing the information to
+		 *                    retrieve.
+		 * \param  objectName Name of the WMI object within the WMI class
+		 *                    containing the information to retrieve.
+		 * \param  datatype   The CIM data type of the information to retrieve.
+		 * \return The output received from the WMI.
+		 * \throws \c std::system_error if the the request failed. A
+		 *         Windows-specific code and error string will be generated.
+		 */
+		std::variant<std::vector<std::int64_t>, std::vector<std::uint64_t>,
+			std::vector<std::string>>
+			_wmiRequest(const char* className, const char* objectName,
+				const CIMTYPE datatype);
+
+		/**
+		 * \brief   Pointer to the WMI locator.
+		 * \details This will be manually released in the destructor.
+		 */
+		IWbemLocator* _pLoc = 0;
+
+		/**
+		 * \brief   Pointer to the WMI services.
+		 * \details This will be manually released in the destructor.
+		 */
+		IWbemServices* _pSvc = 0;
+#endif
+	};
 }
