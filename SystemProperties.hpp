@@ -32,6 +32,8 @@ SOFTWARE.*/
 	#include <comdef.h>
 	#include <WbemIdl.h>
 	#pragma comment(lib, "wbemuuid.lib")
+#elif __linux
+	#include <sys/utsname.h>
 #endif
 
 /**\file  SystemProperties.hpp
@@ -153,26 +155,35 @@ namespace System {
 		std::string OSVersion();
 
 		/**
-		 * \brief  Retrieves the vendor of the currently installed GPU.
-		 * \return The name of the vendor of the installed GPU.
-		 * \throws std::system_error if the the request failed. An OS-specific
-		 *         code and error string will be generated.
+		 * \brief   Retrieves the vendor of the currently installed GPU.
+		 * \details Note that on Linux, the \c lshw program is used to retrieve
+		 *          this information. If the program is not installed, this
+		 *          method will throw.
+		 * \return  The name of the vendor of the installed GPU.
+		 * \throws  std::system_error if the the request failed. An OS-specific
+		 *          code and error string will be generated.
 		 */
 		std::string GPUVendor();
 
 		/**
-		 * \brief  Retrieves the name of the currently installed GPU.
-		 * \return User-friendly name of the installed GPU.
-		 * \throws std::system_error if the the request failed. An OS-specific
-		 *         code and error string will be generated.
+		 * \brief   Retrieves the name of the currently installed GPU.
+		 * \details Note that on Linux, the \c lshw program is used to retrieve
+		 *          this information. If the program is not installed, this
+		 *          method will throw.
+		 * \return  User-friendly name of the installed GPU.
+		 * \throws  std::system_error if the the request failed. An OS-specific
+		 *          code and error string will be generated.
 		 */
 		std::string GPUName();
 
 		/**
-		 * \brief  Retrieves the version of the driver the installed GPU is using.
-		 * \return Version string.
-		 * \throws std::system_error if the the request failed. An OS-specific
-		 *         code and error string will be generated.
+		 * \brief   Retrieves the version of the driver the installed GPU is using.
+		 * \details Note that on Linux, the \c lshw and \c modinfo programs are
+		 *          used to retrieve this information. If the programs are not
+		 *          installed, this method will throw.
+		 * \return  Version string.
+		 * \throws  std::system_error if the the request failed. An OS-specific
+		 *          code and error string will be generated.
 		 */
 		std::string GPUDriver();
 
@@ -224,6 +235,43 @@ namespace System {
 		 * \details This will be manually released in the destructor.
 		 */
 		IWbemServices* _pSvc = 0;
+#elif __linux__
+		/**
+		 * \brief  Make a query for CPU information.
+		 * \param  objectName Name of the piece of CPU information to retrieve.
+		 * \return The piece of CPU information requested.
+		 * \throws std::system_error if the the request failed. A file I/O code and
+		 *         error string will be generated.
+		 */
+		std::string _cpuRequest(const std::string& objectName);
+
+		/**
+		 * \brief  Retrieve information about the OS.
+		 * \return Structure containing Linux-specific OS information.
+		 * \throws std::system_error if the the request failed. A Linux-specific
+		 *         code and error string will be generated.
+		 */
+		struct utsname _osRequest();
+
+		/**
+		 * \brief   Executes a command on the bash and retrieves the output.
+		 * \details Many thanks to <a href="https://stackoverflow.com/a/478960"
+		 *          target=_blank>waqas</a> for the code here.
+		 * \param   cmd The command to execute.
+		 * \return  The output of the executed command.
+		 * \throws  std::system_error if the the request failed. A Linux-specific
+		 *          code and error string will be generated.
+		 */
+		std::string _exec(const char* cmd);
+
+		/**
+		 * \brief  Retrieves GPU information.
+		 * \param  name Name of the GPU information to search for.
+		 * \return The information.
+		 * \throws  std::system_error if the the request failed. A Linux-specific
+		 *          code and error string will be generated.
+		 */
+		std::string _gpuRequest(const std::string& name);
 #endif
 	};
 }

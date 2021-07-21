@@ -22,6 +22,12 @@ SOFTWARE.*/
 
 #include "SystemProperties.hpp"
 
+#ifdef __linux
+	#include <fstream>
+	#include <sys/sysinfo.h>
+	#include <filesystem>
+#endif
+
 std::uint64_t System::convert(const std::uint64_t bytes, const System::Unit unit)
 	noexcept {
 	switch (unit) {
@@ -288,6 +294,163 @@ std::string System::Properties::StorageFree(const System::Unit unit) {
 		_wmiRequest("Win32_LogicalDisk", "freespace", CIM_STRING))[0];
 	return std::to_string(System::convert(std::stoull(total), unit)) +
 		System::notation(unit);
+}
+
+#endif
+
+//////////////////////////
+// LINUX IMPLEMENTATION //
+//////////////////////////
+#ifdef __linux__
+
+System::Properties::Properties() {
+
+}
+
+System::Properties::~Properties() {}
+
+std::string System::Properties::_cpuRequest(const std::string& objectName) {
+	std::ifstream f("/proc/cpuinfo");
+	std::string ret;
+	if (!f.good()) {
+		throw std::system_error(std::error_code(f.rdstate(),
+			std::system_category()), "Failed to open /proc/cpuinfo");
+	} else {
+		while (f.good()) {
+			std::string line;
+			std::getline(f, line);
+			std::string object = line.substr(0, line.find('\t'));
+			if (object == objectName) {
+				ret = line.substr(line.find(':') + 2);
+				break;
+			}
+		}
+		if (ret.size() == 0) {
+			std::string errstr = "Could not find CPU info \"" + objectName + "\"";
+			throw std::system_error(std::error_code(f.rdstate(),
+				std::system_category()), errstr);
+		}
+	}
+	return ret;
+}
+
+struct utsname System::Properties::_osRequest() {
+	struct utsname sys;
+	if (uname(&sys)) {
+		throw std::system_error(std::error_code(errno, std::system_category()),
+			"Failed to access utsname structure");
+	}
+	return sys;
+}
+
+std::string System::Properties::_exec(const char* cmd) {
+    std::array<char, 500> buffer;
+    std::string result;
+    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
+    if (!pipe) {
+		throw std::system_error(std::error_code(2, std::system_category()),
+			"popen() failed whilst calling GPUVendor()");
+    }
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+        result += buffer.data();
+    }
+    return result;
+}
+
+std::string System::Properties::_gpuRequest(const std::string& name) {
+	std::string cmd = "lshw -class Display 2> /dev/null | grep " + name;
+	std::string out = _exec(cmd.c_str());
+	if (out.find(name) == std::string::npos) {
+		std::string e = "Could not obtain GPU " + name + " information from "
+			"lshw";
+		throw std::system_error(std::error_code(1, std::system_category()), e);
+	}
+	std::string line = out.substr(out.find(name) + name.size() + 2);
+	return line.substr(0, line.find("\n"));
+}
+
+std::string System::Properties::CPUModel() {
+	return _cpuRequest("model name");
+}
+
+std::string System::Properties::CPUArchitecture() {
+	std::string flags = _cpuRequest("flags");
+	if (flags.find(" lm ") != std::string::npos) {
+		return "64";
+	} else {
+		return "32";
+	}
+}
+
+std::string System::Properties::RAMTotal(const System::Unit unit) {
+	struct sysinfo sys;
+	if (sysinfo(&sys)) {
+		throw std::system_error(std::error_code(errno, std::system_category()),
+			"Failed to access sysinfo structure");
+	}
+	return std::to_string(System::convert(sys.totalram, unit)) +
+		System::notation(unit);
+}
+
+std::string System::Properties::OSName() {
+	std::string full = _osRequest().sysname;
+	full += " ";
+	full.append(_osRequest().release);
+	return full;
+}
+
+std::string System::Properties::OSVersion() {
+	return _osRequest().version;
+}
+
+std::string System::Properties::GPUVendor() {
+	static std::string vendor = "";
+	if (vendor == "") vendor = _gpuRequest("vendor");
+	return vendor;
+}
+
+std::string System::Properties::GPUName() {
+	static std::string name = "";
+	if (name == "") name = _gpuRequest("product");
+	return name;
+}
+
+std::string System::Properties::GPUDriver() {
+	static std::string driver = "";
+	if (driver == "") {
+		// firstly, we find the driver name
+		std::string config = _gpuRequest("configuration");
+		if (config.find("driver=") == std::string::npos) {
+			throw std::system_error(std::error_code(3, std::system_category()),
+				"Driver was not within Display lshw configurations");
+		}
+		std::string driverParam = config.substr(config.find("driver=") + 7);
+		driverParam = driverParam.substr(0, config.find(" "));
+		// secondly, we use that to make a request to modinfo
+		std::string modinfoIn = "modinfo " + driverParam + " 2> /dev/null | grep "
+			"firmware:";
+		std::string modinfoOut = _exec(modinfoIn.c_str());
+		if (modinfoOut == "") {
+			throw std::system_error(std::error_code(4, std::system_category()),
+				"Could not retrieve driver version from modinfo");
+		}
+		
+		modinfoOut = modinfoOut.substr(modinfoOut.find_first_not_of(" \t", 9));
+		driver = modinfoOut.substr(0, modinfoOut.find_last_not_of("\n\r") + 1);
+	}
+	return driver;
+}
+
+std::string System::Properties::StorageTotal(const System::Unit unit) {
+	// if at some point in the future I need to not use filesystem for whatever
+	// reason, then check out statvfs() - seems like it can't do total though...
+	return std::to_string(System::convert(std::filesystem::space("/").capacity,
+		unit)) + System::notation(unit);
+}
+
+std::string System::Properties::StorageFree(const System::Unit unit) {
+	return std::to_string(System::convert(std::filesystem::space("/").available,
+		unit)) + System::notation(unit);
 }
 
 #endif
