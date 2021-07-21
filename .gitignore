@@ -13,3 +13,5 @@ _deps
 /.vs
 *.lnk
 /doc
+/.debris
+/.vscode
