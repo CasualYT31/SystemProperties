@@ -23,6 +23,7 @@ SOFTWARE.*/
 #pragma once
 
 #include <string>
+#include <system_error>
 
 #ifdef _WIN32
 	#include <variant>
@@ -226,3 +227,9 @@ namespace System {
 #endif
 	};
 }
+
+#ifdef _WIN32
+	// just in case leaving this in could cause problems in another's Windows code
+	// idk if this is even a useful thing to do, but it can't hurt... hopefully...
+	#undef _WIN32_DCOM
+#endif

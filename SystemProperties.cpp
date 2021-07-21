@@ -21,7 +21,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.*/
 
 #include "SystemProperties.hpp"
-#include <system_error>
 
 std::uint64_t System::convert(const std::uint64_t bytes, const System::Unit unit)
 	noexcept {
