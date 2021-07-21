@@ -99,7 +99,7 @@ namespace System {
 		 * \warning If this constructor throws, \b do \b not use the resulting
 		 *          object, as it will be unsafe to do so (accessing NULL pointers
 		 *          internally, etc.).
-		 * \throws  \c std::system_error if initialisation failed. An OS-specific
+		 * \throws  std::system_error if initialisation failed. An OS-specific
 		 *          code and error string will be generated.
 		 */
 		Properties();
@@ -113,7 +113,7 @@ namespace System {
 		/**
 		 * \brief  Retrieves the CPU model name.
 		 * \return User-friendly name of the CPU.
-		 * \throws \c std::system_error if the the request failed. An OS-specific
+		 * \throws std::system_error if the the request failed. An OS-specific
 		 *         code and error string will be generated.
 		 */
 		std::string CPUModel();
@@ -121,7 +121,7 @@ namespace System {
 		/**
 		 * \brief  Retrieves the CPU architecture.
 		 * \return Architecture of the CPU.
-		 * \throws \c std::system_error if the the request failed. An OS-specific
+		 * \throws std::system_error if the the request failed. An OS-specific
 		 *         code and error string will be generated.
 		 */
 		std::string CPUArchitecture();
@@ -131,7 +131,7 @@ namespace System {
 		 * \param  unit The unit of memory to return the total RAM in. By default,
 		 *              it is \c System::Unit::GB.
 		 * \return The total RAM installed.
-		 * \throws \c std::system_error if the the request failed. An OS-specific
+		 * \throws std::system_error if the the request failed. An OS-specific
 		 *         code and error string will be generated.
 		 */
 		std::string RAMTotal(const System::Unit unit = System::Unit::GB);
@@ -139,7 +139,7 @@ namespace System {
 		/**
 		 * \brief  Retrieves the name of the OS the machine is running.
 		 * \return User-friendly OS name.
-		 * \throws \c std::system_error if the the request failed. An OS-specific
+		 * \throws std::system_error if the the request failed. An OS-specific
 		 *         code and error string will be generated.
 		 */
 		std::string OSName();
@@ -147,7 +147,7 @@ namespace System {
 		/**
 		 * \brief  Retrieves the version of the OS the machine is running.
 		 * \return Version string.
-		 * \throws \c std::system_error if the the request failed. An OS-specific
+		 * \throws std::system_error if the the request failed. An OS-specific
 		 *         code and error string will be generated.
 		 */
 		std::string OSVersion();
@@ -155,7 +155,7 @@ namespace System {
 		/**
 		 * \brief  Retrieves the vendor of the currently installed GPU.
 		 * \return The name of the vendor of the installed GPU.
-		 * \throws \c std::system_error if the the request failed. An OS-specific
+		 * \throws std::system_error if the the request failed. An OS-specific
 		 *         code and error string will be generated.
 		 */
 		std::string GPUVendor();
@@ -163,7 +163,7 @@ namespace System {
 		/**
 		 * \brief  Retrieves the name of the currently installed GPU.
 		 * \return User-friendly name of the installed GPU.
-		 * \throws \c std::system_error if the the request failed. An OS-specific
+		 * \throws std::system_error if the the request failed. An OS-specific
 		 *         code and error string will be generated.
 		 */
 		std::string GPUName();
@@ -171,7 +171,7 @@ namespace System {
 		/**
 		 * \brief  Retrieves the version of the driver the installed GPU is using.
 		 * \return Version string.
-		 * \throws \c std::system_error if the the request failed. An OS-specific
+		 * \throws std::system_error if the the request failed. An OS-specific
 		 *         code and error string will be generated.
 		 */
 		std::string GPUDriver();
@@ -181,7 +181,7 @@ namespace System {
 		 * \param  unit The unit of memory to return the capacity in. By default,
 		 *              it is \c System::Unit::GB.
 		 * \return The capacity of the primary drive.
-		 * \throws \c std::system_error if the the request failed. An OS-specific
+		 * \throws std::system_error if the the request failed. An OS-specific
 		 *         code and error string will be generated.
 		 */
 		std::string StorageTotal(const System::Unit unit = System::Unit::GB);
@@ -191,7 +191,7 @@ namespace System {
 		 * \param  unit The unit of memory to return the free space in. By default,
 		 *              it is \c System::Unit::GB.
 		 * \return The free space of the primary drive.
-		 * \throws \c std::system_error if the the request failed. An OS-specific
+		 * \throws std::system_error if the the request failed. An OS-specific
 		 *         code and error string will be generated.
 		 */
 		std::string StorageFree(const System::Unit unit = System::Unit::GB);
@@ -205,7 +205,7 @@ namespace System {
 		 *                    containing the information to retrieve.
 		 * \param  datatype   The CIM data type of the information to retrieve.
 		 * \return The output received from the WMI.
-		 * \throws \c std::system_error if the the request failed. A
+		 * \throws std::system_error if the the request failed. A
 		 *         Windows-specific code and error string will be generated.
 		 */
 		std::variant<std::vector<std::int64_t>, std::vector<std::uint64_t>,
