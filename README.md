@@ -15,7 +15,7 @@ include (FetchContent)
 
 FetchContent_Declare(systemproperties
 	GIT_REPOSITORY https://github.com/CasualYT31/SystemProperties.git
-	GIT_TAG 0.4 # alternatively, you can use main to fetch the latest version (which may be unstable)
+	GIT_TAG 0.5 # alternatively, you can use main to fetch the latest version (which may be unstable)
 )
 FetchContent_MakeAvailable(systemproperties)
 
