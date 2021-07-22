@@ -31,7 +31,8 @@ SOFTWARE.*/
 	#include <vector>
 	#ifdef _WIN32_DCOM
 		#define _SYSTEM_PROPERTIES_DO_NOT_UNDEF
-	#elif
+	#endif
+	#ifndef _WIN32_DCOM
 		#define _WIN32_DCOM
 	#endif
 	#include <comdef.h>
