@@ -35,6 +35,8 @@ SOFTWARE.*/
 	#pragma comment(lib, "wbemuuid.lib")
 #elif __linux__
 	#include <sys/utsname.h>
+#elif __APPLE__
+	// macOS-only includes go here
 #endif
 
 /**\file  SystemProperties.hpp
@@ -280,6 +282,9 @@ namespace System {
 		 *          code and error string will be generated.
 		 */
 		std::string _gpuRequest(const std::string& name);
+#elif __APPLE__
+		// any macOS-only data required goes here
+		// also any macOS-only helper methods should be declared here
 #endif
 	};
 }

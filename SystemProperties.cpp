@@ -453,6 +453,15 @@ std::string System::Properties::StorageFree(const System::Unit unit) {
 
 #endif
 
+//////////////////////////
+// MACOS IMPLEMENTATION //
+//////////////////////////
+#ifdef __APPLE__
+
+// macOS-only implementation goes here
+
+#endif
+
 ///////////////////////////////////
 // CROSS-PLATFORM IMPLEMENTATION //
 ///////////////////////////////////
