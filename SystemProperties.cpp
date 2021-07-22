@@ -21,11 +21,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.*/
 
 #include "SystemProperties.hpp"
+#include <filesystem>
 
-#ifdef __linux
+#ifdef __linux__
 	#include <fstream>
 	#include <sys/sysinfo.h>
-	#include <filesystem>
 #endif
 
 std::uint64_t System::convert(const std::uint64_t bytes, const System::Unit unit)
@@ -282,7 +282,7 @@ std::string System::Properties::GPUDriver() {
 		_wmiRequest("Win32_VideoController", "driverversion", CIM_STRING))[0];
 }
 
-std::string System::Properties::StorageTotal(const System::Unit unit) {
+/* std::string System::Properties::StorageTotal(const System::Unit unit) {
 	std::string total = std::get<std::vector<std::string>>(
 		_wmiRequest("Win32_LogicalDisk", "size", CIM_STRING))[0];
 	return std::to_string(System::convert(std::stoull(total), unit)) +
@@ -294,7 +294,7 @@ std::string System::Properties::StorageFree(const System::Unit unit) {
 		_wmiRequest("Win32_LogicalDisk", "freespace", CIM_STRING))[0];
 	return std::to_string(System::convert(std::stoull(total), unit)) +
 		System::notation(unit);
-}
+} */
 
 #endif
 
@@ -303,9 +303,7 @@ std::string System::Properties::StorageFree(const System::Unit unit) {
 //////////////////////////
 #ifdef __linux__
 
-System::Properties::Properties() {
-
-}
+System::Properties::Properties() {}
 
 System::Properties::~Properties() {}
 
@@ -441,6 +439,23 @@ std::string System::Properties::GPUDriver() {
 	return driver;
 }
 
+/* std::string System::Properties::StorageTotal(const System::Unit unit) {
+	// if at some point in the future I need to not use filesystem for whatever
+	// reason, then check out statvfs() - seems like it can't do total though...
+	return std::to_string(System::convert(std::filesystem::space("/").capacity,
+		unit)) + System::notation(unit);
+}
+
+std::string System::Properties::StorageFree(const System::Unit unit) {
+	return std::to_string(System::convert(std::filesystem::space("/").available,
+		unit)) + System::notation(unit);
+} */
+
+#endif
+
+///////////////////////////////////
+// CROSS-PLATFORM IMPLEMENTATION //
+///////////////////////////////////
 std::string System::Properties::StorageTotal(const System::Unit unit) {
 	// if at some point in the future I need to not use filesystem for whatever
 	// reason, then check out statvfs() - seems like it can't do total though...
@@ -452,5 +467,3 @@ std::string System::Properties::StorageFree(const System::Unit unit) {
 	return std::to_string(System::convert(std::filesystem::space("/").available,
 		unit)) + System::notation(unit);
 }
-
-#endif

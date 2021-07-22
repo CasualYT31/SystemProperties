@@ -24,6 +24,7 @@ SOFTWARE.*/
 
 #include <string>
 #include <system_error>
+#include <filesystem>
 
 #ifdef _WIN32
 	#include <variant>
@@ -32,7 +33,7 @@ SOFTWARE.*/
 	#include <comdef.h>
 	#include <WbemIdl.h>
 	#pragma comment(lib, "wbemuuid.lib")
-#elif __linux
+#elif __linux__
 	#include <sys/utsname.h>
 #endif
 
@@ -129,12 +130,18 @@ namespace System {
 		std::string CPUArchitecture();
 
 		/**
-		 * \brief  Retrieves the total installed RAM available.
-		 * \param  unit The unit of memory to return the total RAM in. By default,
-		 *              it is \c System::Unit::GB.
-		 * \return The total RAM installed.
-		 * \throws std::system_error if the the request failed. An OS-specific
-		 *         code and error string will be generated.
+		 * \brief   Retrieves the total installed RAM available.
+		 * \details On the Windows implementation, the total RAM installed will be
+		 *          returned.\n
+		 *          On the Linux implementation, only the RAM available for use at
+		 *          the time of calling will be returned. This could mean that 16GB
+		 *          of RAM is installed, for example, but only 8GB of it is readily
+		 *          available.
+		 * \param   unit The unit of memory to return the total RAM in. By default,
+		 *               it is \c System::Unit::GB.
+		 * \return  The total RAM installed.
+		 * \throws  std::system_error if the the request failed. An OS-specific
+		 *          code and error string will be generated.
 		 */
 		std::string RAMTotal(const System::Unit unit = System::Unit::GB);
 
@@ -188,21 +195,22 @@ namespace System {
 		std::string GPUDriver();
 
 		/**
-		 * \brief  Retrieves the capacity of the primary drive.
+		 * \brief  Retrieves the capacity of the drive the program is running on.
 		 * \param  unit The unit of memory to return the capacity in. By default,
 		 *              it is \c System::Unit::GB.
-		 * \return The capacity of the primary drive.
-		 * \throws std::system_error if the the request failed. An OS-specific
+		 * \return The capacity of the drive.
+		 * \throws std::filesystem_error if the the request failed. An OS-specific
 		 *         code and error string will be generated.
 		 */
 		std::string StorageTotal(const System::Unit unit = System::Unit::GB);
 
 		/**
-		 * \brief  Retrieves the amount of free space on the primary drive.
+		 * \brief  Retrieves the amount of free space on the drive the program is
+		 *         running on.
 		 * \param  unit The unit of memory to return the free space in. By default,
 		 *              it is \c System::Unit::GB.
-		 * \return The free space of the primary drive.
-		 * \throws std::system_error if the the request failed. An OS-specific
+		 * \return The free space of the drive.
+		 * \throws std::filesystem_error if the the request failed. An OS-specific
 		 *         code and error string will be generated.
 		 */
 		std::string StorageFree(const System::Unit unit = System::Unit::GB);
