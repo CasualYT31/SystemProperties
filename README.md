@@ -24,7 +24,7 @@ FetchContent_MakeAvailable(systemproperties)
 target_link_libraries(YourTargetNameHere SystemProperties)
 ```
 
-Alternatively, you can simply download the code manually and add both `SystemProperties.hpp` and `SystemProperties.cpp` to your project directly as accompanying source files in case you don't wish to use CMake.
+Alternatively, you can simply download the code manually and add both `SystemProperties.hpp` and `SystemProperties.cpp` to your project directly as accompanying source files in case you don't wish to use CMake. However, if you decide to do this, you must be able to compile your source code using the C++17 standard.
 
 # Progress
 This library can currently obtain all information that [this library](https://github.com/dabbertorres/systemInfo) can, plus some storage information, but for **Windows and Linux only**. I can very easily extend Windows and Linux features, but as I don't have access to a macOS device, no code has been written for that platform yet.
