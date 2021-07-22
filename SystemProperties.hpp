@@ -29,7 +29,11 @@ SOFTWARE.*/
 #ifdef _WIN32
 	#include <variant>
 	#include <vector>
-	#define _WIN32_DCOM
+	#ifdef _WIN32_DCOM
+		#define _SYSTEM_PROPERTIES_DO_NOT_UNDEF
+	#elif
+		#define _WIN32_DCOM
+	#endif
 	#include <comdef.h>
 	#include <WbemIdl.h>
 	#pragma comment(lib, "wbemuuid.lib")
@@ -292,5 +296,7 @@ namespace System {
 #ifdef _WIN32
 	// just in case leaving this in could cause problems in another's Windows code
 	// idk if this is even a useful thing to do, but it can't hurt... hopefully...
-	#undef _WIN32_DCOM
+	#ifndef _SYSTEM_PROPERTIES_DO_NOT_UNDEF
+		#undef _WIN32_DCOM
+	#endif
 #endif
